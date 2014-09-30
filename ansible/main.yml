@@ -1,6 +1,7 @@
 - name: Get to know the servers a bit
   hosts: "{{ hosts | default('all') }}"
   tasks:
+
     - name: Discover OS
       debug:
         msg: "{{ ansible_distribution }}"
@@ -10,6 +11,19 @@
     - name: Discover package manager
       debug:
         msg: "{{ ansible_pkg_mgr }}"
+
+    - name: Check if /etc/cron.d/ exists
+      stat: path=/etc/cron.d
+      register: cron_d
+    - name: Machine has /etc/cron.d
+      set_fact:
+        has_cron_d: yes
+      when: cron_d.stat.exists
+    - name: Machine doesn't have /etc/cron.d
+      set_fact:
+        has_cron_d: no
+      when: not cron_d.stat.exists
+
     - name: Group servers per OS family
       group_by: key={{ ansible_os_family }}
 
@@ -39,7 +53,7 @@
       when: not st.stat.exists  # => collectd wasn't previously installed (fixes issue with apt)
 
 
-- name: Install CollectD for RedHat based distros (tested only with AMI)
+- name: Install CollectD for RedHat based distros (tested only with AMI, CentOS6)
   hosts: RedHat
   gather_facts: no
   sudo: yes
@@ -59,29 +73,7 @@
       debug: msg=sorry
 
 
-- name: Set up mistio-collectd cron entries (if applicable)
-  hosts: Debian:RedHat
-  gather_facts: no
-  sudo: yes
-  tasks:
-    - name: Set up cron entry for mistio-collectd to start at boot
-      cron:
-        name: mistio-collectd
-        user: root
-        special_time: reboot
-        job: /opt/mistio-collectd/collectd.sh start
-        cron_file: mistio-collectd
-    - name: Set up cron entry to restart mistio-collectd daily
-      cron:
-        name: mistio-collectd daily restart to resolve monitor hostname
-        user: root
-        minute: 0
-        hour: 0
-        job: /opt/mistio-collectd/collectd.sh restart
-        cron_file: mistio-collectd
-
-
-- name: Write config files and start collectd
+- name: Configure and start collectd
   hosts: "{{ hosts | default('all') }}"
   gather_facts: no
   sudo: yes
@@ -90,22 +82,54 @@
     monitor: monitor1.mist.io
     password: 12345678
   tasks:
+
+    - name: has_cron_d
+      debug: msg={{ has_cron_d }}
+
+    - name: Set up cron entry for mistio-collectd to start at boot
+      cron:
+        name: mistio-collectd
+        user: root
+        special_time: reboot
+        job: /opt/mistio-collectd/collectd.sh start
+        cron_file: mistio-collectd
+      when: has_cron_d
+
+    - name: Set up cron entry to restart mistio-collectd daily
+      cron:
+        name: mistio-collectd daily restart to resolve monitor hostname
+        user: root
+        minute: 0
+        hour: 0
+        job: /opt/mistio-collectd/collectd.sh restart
+        cron_file: mistio-collectd
+      when: has_cron_d
+
+    - name: /etc/cron.d missing
+      debug:
+        msg: seriously?
+      when: not has_cron_d
+
     - name: Create /opt/mistio-collectd/ directory
       file:
         path: /opt/mistio-collectd
         state: directory
+
     - name: Generate collectd config file
       template:
         src: collectd.conf.j2
         dest: /opt/mistio-collectd/collectd.conf
+
     - name: Generate collectd init script
       copy:
         src: collectd.sh
         dest: /opt/mistio-collectd/collectd.sh
         mode: 0755
+
     - name: Generate mistio-collectd uuid file
       copy:
         content: "{{ uuid }}"
         dest: /opt/mistio-collectd/uuid
+
     - name: Start collectd
       shell: /opt/mistio-collectd/collectd.sh start
