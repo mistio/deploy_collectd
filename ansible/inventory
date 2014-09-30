@@ -1,0 +1,9 @@
+# Add hosts here
+
+
+
+
+[all:vars]
+# this is so that ansible works on FreeBSD
+ansible_python_interpreter="/usr/bin/env python2"
+

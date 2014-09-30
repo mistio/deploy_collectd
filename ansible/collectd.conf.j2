@@ -1,0 +1,45 @@
+FQDNLookup false
+Interval 5
+
+LoadPlugin uuid
+<Plugin uuid>
+    UUIDFile "/opt/mistio-collectd/uuid"
+</Plugin>
+
+LoadPlugin syslog
+<Plugin syslog>
+    LogLevel info
+</Plugin>
+
+LoadPlugin cpu
+LoadPlugin df
+LoadPlugin md
+LoadPlugin thermal
+LoadPlugin disk
+LoadPlugin entropy
+LoadPlugin interface
+LoadPlugin load
+LoadPlugin memory
+LoadPlugin processes
+LoadPlugin swap
+LoadPlugin users
+
+LoadPlugin ping
+<Plugin ping>
+     Host "8.8.8.8"
+</Plugin>
+
+LoadPlugin network
+<Plugin network>
+    TimeToLive 128
+    <Server "{{ monitor }}" "25826">
+        SecurityLevel Encrypt
+        Username "{{ uuid }}"
+        Password "{{ password }}"
+    </Server>
+    MaxPacketSize 1024
+    Forward true
+    ReportStats false
+</Plugin>
+
+Include "/opt/mistio-collectd/plugins/mist-python/include.conf"
