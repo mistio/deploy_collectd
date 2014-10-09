@@ -55,3 +55,10 @@ target/
 
 # vim swp files
 *.swp
+
+# virtualenv dirs
+bin/
+include/
+local/
+share/
+

@@ -4,13 +4,7 @@
 
     - name: Discover OS
       debug:
-        msg: "{{ ansible_distribution }}"
-    - name: Discover OS family
-      debug:
-        msg: "{{ ansible_os_family }}"
-    - name: Discover package manager
-      debug:
-        msg: "{{ ansible_pkg_mgr }}"
+        msg: "Distro: {{ ansible_distribution }}. Family: {{ ansible_os_family }}. PkgMgr: {{ ansible_pkg_mgr }}"
 
     - name: Check if /etc/cron.d/ exists
       stat: path=/etc/cron.d
@@ -82,9 +76,6 @@
     monitor: monitor1.mist.io
     password: 12345678
   tasks:
-
-    - name: has_cron_d
-      debug: msg={{ has_cron_d }}
 
     - name: Set up cron entry for mistio-collectd to start at boot
       cron:
