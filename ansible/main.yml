@@ -1,4 +1,4 @@
-- name: Get to know the servers a bit
+- name: Get to know the servers a bit and make sure some basic things are in order
   hosts: "{{ hosts | default('all') }}"
   tasks:
 
@@ -18,11 +18,39 @@
         has_cron_d: no
       when: not cron_d.stat.exists
 
-    - name: Group servers per OS family
+    - name: Make sure /etc/resolv.conf has at least one nameserver
+      command: grep ^nameserver /etc/resolv.conf
+      register: grep_nameserver
+      changed_when: False
+      failed_when: False
+    - name: "WARNING: No nameserver configured, adding 8.8.8.8 to /etc/resolv.conf"
+      sudo: yes
+      lineinfile:
+        line: nameserver 8.8.8.8
+        dest: /etc/resolv.conf
+        insertafter: EOF
+        state: present
+      when: grep_nameserver.rc == 1
+
+    - name: Make sure hostname is registered in /etc/hosts
+      command: grep -w {{ ansible_hostname }} /etc/hosts
+      register: grep_hosts
+      changed_when: False
+      failed_when: False
+    - name: "WARNING: hostname not in /etc/hosts, adding"
+      sudo: yes
+      lineinfile:
+        line: "127.0.0.1 {{ ansible_hostname }}"
+        dest: /etc/hosts
+        insertafter: EOF
+        state: present
+      when: grep_hosts.rc == 1
+
+    - name: Group servers per OS family to apply OS specific steps
       group_by: key={{ ansible_os_family }}
 
 
-- name: Install CollectD for Debian based distros (tested only with ubuntu)
+- name: Install CollectD for Debian based distros
   hosts: Debian
   gather_facts: no
   sudo: yes
@@ -38,25 +66,44 @@
       apt:
         pkg: collectd
         state: present
-      ignore_errors: yes
-    - name: Disable collectd as a system service, if it wasn't previously running
+    - name: Stop collectd system service, if it wasn't previously running
       service:
         name: collectd
         state: stopped
-        enabled: no
-      when: not st.stat.exists  # => collectd wasn't previously installed (fixes issue with apt)
+        # enabled: no
+      when: not st.stat.exists  # => collectd wasn't previously installed
+    - name: Disable collectd system service, if it wasn't previously running
+      lineinfile:
+        regexp: ^DISABLE=
+        line: DISABLE=1
+        dest: /etc/default/collectd
+      when: not st.stat.exists  # => collectd wasn't previously installed
 
 
-- name: Install CollectD for RedHat based distros (tested only with AMI, CentOS6)
+- name: Install CollectD for RedHat based distros
   hosts: RedHat
   gather_facts: no
   sudo: yes
   tasks:
-    - name: Install collectd
+    - name: Check if /etc/yum.repos.d/epel.repo exists
+      stat: path=/etc/yum.repos.d/epel.repo
+      register: st
+    - name: Install epel-release if /etc/yum.repos.d/epel.repo missing (not for Fedora)
+      yum:
+        name: epel-release
+        state: present
+      when: not st.stat.exists and ansible_distribution != 'Fedora'
+    - name: Install collectd from epel repo (all except Fedora)
       yum:
         name: collectd
         state: present
-
+        enablerepo: epel
+      when: ansible_distribution != 'Fedora'
+    - name: Install collectd from epel repo (only for Fedora)
+      yum:
+        name: collectd
+        state: present
+      when: ansible_distribution == 'Fedora'
 
 - name: Install CollectD for FreeBSD
   hosts: FreeBSD
@@ -72,9 +119,7 @@
   gather_facts: no
   sudo: yes
   vars:
-    uuid: uuid
     monitor: monitor1.mist.io
-    password: 12345678
   tasks:
 
     - name: Set up cron entry for mistio-collectd to start at boot

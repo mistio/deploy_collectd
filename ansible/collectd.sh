@@ -12,6 +12,7 @@ start() {
   fi
   echo "Starting mist.io collectd"
   $COLLECTD -C $CONFIG_FILE -P $PID_FILE
+  sleep 1
   cat $PID_FILE
 }
 
