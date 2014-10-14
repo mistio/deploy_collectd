@@ -32,46 +32,63 @@
         state: present
       when: grep_nameserver.rc == 1
 
+    - name: Check support for OS family
+      fail: msg="Distro {{ ansible_distribution }} not supported, please open a support ticket in https://github.com/mistio/deploy_collectd"
+      when: ansible_os_family not in ['Debian', 'RedHat']
+
+    - name: Group servers per OS to apply OS specific steps
+      group_by: key={{ ansible_distribution }}
+
+    - name: Group servers per OS family to apply OS family specific steps
+      group_by: key={{ ansible_os_family }}_based
+
+
+- name: Install CollectD for Debian based distros
+  hosts: Debian_based
+  gather_facts: no
+  sudo: yes
+  tasks:
+
+    - name: This playbook has only been tested with Debian and Ubuntu
+      debug:
+        msg: "Not sure if {{ ansible_distribution }} is supported, will try and hope for the best."
+      when: ansible_distribution not in ['Debian', 'Ubuntu']
+
     - name: Make sure hostname is registered in /etc/hosts
       command: grep -w {{ ansible_hostname }} /etc/hosts
       register: grep_hosts
       changed_when: False
       failed_when: False
-    - name: "WARNING: hostname not in /etc/hosts, adding"
-      sudo: yes
+
+    - name: "WARNING: hostname not in /etc/hosts, adding temporarily (so that apt-get install won't break in post installation due to FQDNLookup=True)"
       lineinfile:
         line: "127.0.0.1 {{ ansible_hostname }}"
         dest: /etc/hosts
         insertafter: EOF
         state: present
       when: grep_hosts.rc == 1
+      notify: Remove localhost from /etc/hosts
 
-    - name: Group servers per OS family to apply OS specific steps
-      group_by: key={{ ansible_os_family }}
+    - name: Check if /etc/init.d/collectd exists
+      stat: path=/etc/init.d/collectd
+      register: st
 
-
-- name: Install CollectD for Debian based distros
-  hosts: Debian
-  gather_facts: no
-  sudo: yes
-  tasks:
     - name: Update package list
       apt:
         update_cache: yes
         cache_valid_time: 3600
-    - name: Check if /etc/init.d/collectd exists
-      stat: path=/etc/init.d/collectd
-      register: st
     - name: Install collectd
       apt:
         pkg: collectd
         state: present
+
     - name: Stop collectd system service, if it wasn't previously running
       service:
         name: collectd
         state: stopped
         # enabled: no
       when: not st.stat.exists  # => collectd wasn't previously installed
+
     - name: Disable collectd system service, if it wasn't previously running
       lineinfile:
         regexp: ^DISABLE=
@@ -79,39 +96,55 @@
         dest: /etc/default/collectd
       when: not st.stat.exists  # => collectd wasn't previously installed
 
+  handlers:
+    # this is a handler so that in combination with --force-handlers it also runs if a failure occured
+    - name: Remove localhost from /etc/hosts
+      lineinfile:
+        line: "127.0.0.1 {{ ansible_hostname }}"
+        dest: /etc/hosts
+        state: absent
 
-- name: Install CollectD for RedHat based distros
-  hosts: RedHat
+
+- name: Install CollectD for Fedora
+  hosts: Fedora
   gather_facts: no
   sudo: yes
   tasks:
+    - name: Install collectd
+      yum:
+        name: collectd
+        state: present
+
+
+- name: Install CollectD for RedHat based distros (excluding Fedora)
+  hosts: RedHat_based:!Fedora
+  gather_facts: no
+  sudo: yes
+  tasks:
+    - name: This playbook has only been tested with CentOS, RHEL
+      debug:
+        msg: "Not sure if {{ ansible_distribution }} is supported, will try and hope for the best."
+      when: ansible_distribution not in ['CentOS', 'RedHat']
+
     - name: Check if /etc/yum.repos.d/epel.repo exists
       stat: path=/etc/yum.repos.d/epel.repo
       register: st
-    - name: Install epel-release if /etc/yum.repos.d/epel.repo missing (not for Fedora)
+    - name: Install epel-release if /etc/yum.repos.d/epel.repo missing
       yum:
         name: epel-release
         state: present
-      when: not st.stat.exists and ansible_distribution != 'Fedora'
-    - name: Install collectd from epel repo (all except Fedora)
+      when: not st.stat.exists
+    - name: Install collectd from epel repo
       yum:
         name: collectd
         state: present
         enablerepo: epel
-      when: ansible_distribution != 'Fedora'
-    - name: Install collectd from epel repo (only for Fedora)
-      yum:
-        name: collectd
-        state: present
-      when: ansible_distribution == 'Fedora'
-
-- name: Install CollectD for FreeBSD
-  hosts: FreeBSD
-  gather_facts: no
-  sudo: yes
-  tasks:
-    - name: FreeBSD support not yet implemented
-      debug: msg=sorry
+    - name: Disable epel repository if it was initially disabled
+      ini_file: dest=/etc/yum.repos.d/epel.repo
+        section=epel
+        option=enabled
+        value=0
+      when: not st.stat.exists
 
 
 - name: Configure and start collectd
