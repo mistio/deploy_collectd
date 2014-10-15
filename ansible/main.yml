@@ -2,39 +2,38 @@
   hosts: "{{ hosts | default('all') }}"
   tasks:
 
+    - name: Temporary hack to distinguish openSuse from Suse, due to a bug in ansible setup module
+      shell: grep -i opensuse /etc/SuSE-release || grep -i opensuse /etc/os-release
+      changed_when: False
+      failed_when: False
+      register: grep_opensuse
+      when: ansible_distribution == 'Suse'
+    - name: Change discovered distro from Suse to openSuse
+      set_fact:
+        ansible_distribution: Opensuse
+      when: ansible_distribution == 'Suse' and grep_opensuse.rc == 0
+
     - name: Discover OS
       debug:
         msg: "Distro: {{ ansible_distribution }}. Family: {{ ansible_os_family }}. PkgMgr: {{ ansible_pkg_mgr }}"
 
-    - name: Check if /etc/cron.d/ exists
-      stat: path=/etc/cron.d
-      register: cron_d
-    - name: Machine has /etc/cron.d
-      set_fact:
-        has_cron_d: yes
-      when: cron_d.stat.exists
-    - name: Machine doesn't have /etc/cron.d
-      set_fact:
-        has_cron_d: no
-      when: not cron_d.stat.exists
-
-    - name: Make sure /etc/resolv.conf has at least one nameserver
-      command: grep ^nameserver /etc/resolv.conf
-      register: grep_nameserver
-      changed_when: False
-      failed_when: False
-    - name: "WARNING: No nameserver configured, adding 8.8.8.8 to /etc/resolv.conf"
-      sudo: yes
-      lineinfile:
-        line: nameserver 8.8.8.8
-        dest: /etc/resolv.conf
-        insertafter: EOF
-        state: present
-      when: grep_nameserver.rc == 1
-
     - name: Check support for OS family
       fail: msg="Distro {{ ansible_distribution }} not supported, please open a support ticket in https://github.com/mistio/deploy_collectd"
-      when: ansible_os_family not in ['Debian', 'RedHat']
+      when: ansible_os_family not in ['Debian', 'RedHat', 'Suse']
+
+    # - name: Make sure /etc/resolv.conf has at least one nameserver
+      # command: grep ^nameserver /etc/resolv.conf
+      # register: grep_nameserver
+      # changed_when: False
+      # failed_when: False
+    # - name: "WARNING: No nameserver configured, adding 208.67.222.222 to /etc/resolv.conf"
+      # sudo: yes
+      # lineinfile:
+        # line: nameserver 208.67.222.222
+        # dest: /etc/resolv.conf
+        # insertafter: EOF
+        # state: present
+      # when: grep_nameserver.rc == 1
 
     - name: Group servers per OS to apply OS specific steps
       group_by: key={{ ansible_distribution }}
@@ -147,6 +146,27 @@
       when: not st.stat.exists
 
 
+- name: Install CollectD for Suse based repos
+  hosts: Suse_based
+  gather_facts: no
+  sudo: yes
+  tasks:
+    - name: "Only openSuSE has collectd in main repos, adding YaST:Web/SLE_11_SP3"
+      zypper_repository:
+        repo: "http://download.opensuse.org/repositories/YaST:Web/SLE_11_SP3/YaST:Web.repo"
+        state: present
+      when: ansible_distribution != 'Opensuse'
+    - name: Import repo gpg key
+      rpm_key:
+        key: "http://download.opensuse.org/repositories/YaST:/Web/SLE_11_SP3/repodata/repomd.xml.key"  # check out https://github.com/ansible/ansible-modules-extras/issues/65
+        state: present
+      when: ansible_distribution != 'Opensuse'
+    - name: Try to install collectd from the repo
+      zypper:
+        name: collectd
+        state: present
+
+
 - name: Configure and start collectd
   hosts: "{{ hosts | default('all') }}"
   gather_facts: no
@@ -155,6 +175,10 @@
     monitor: monitor1.mist.io
   tasks:
 
+    - name: Check if /etc/cron.d/ exists
+      stat: path=/etc/cron.d
+      register: cron_d
+
     - name: Set up cron entry for mistio-collectd to start at boot
       cron:
         name: mistio-collectd
@@ -162,7 +186,7 @@
         special_time: reboot
         job: /opt/mistio-collectd/collectd.sh start
         cron_file: mistio-collectd
-      when: has_cron_d
+      when: cron_d.stat.exists
 
     - name: Set up cron entry to restart mistio-collectd daily
       cron:
@@ -172,12 +196,12 @@
         hour: 0
         job: /opt/mistio-collectd/collectd.sh restart
         cron_file: mistio-collectd
-      when: has_cron_d
+      when: cron_d.stat.exists
 
     - name: /etc/cron.d missing
       debug:
         msg: seriously?
-      when: not has_cron_d
+      when: not cron_d.stat.exists
 
     - name: Create /opt/mistio-collectd/ directory
       file:
