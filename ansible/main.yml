@@ -4,8 +4,8 @@
 
     - name: Temporary hack to distinguish openSuse from Suse, due to a bug in ansible setup module
       shell: grep -i opensuse /etc/SuSE-release || grep -i opensuse /etc/os-release
-      changed_when: False
-      failed_when: False
+      changed_when: false
+      failed_when: false
       register: grep_opensuse
       when: ansible_distribution == 'Suse'
     - name: Change discovered distro from Suse to openSuse
@@ -19,21 +19,7 @@
 
     - name: Check support for OS family
       fail: msg="Distro {{ ansible_distribution }} not supported, please open a support ticket in https://github.com/mistio/deploy_collectd"
-      when: ansible_os_family not in ['Debian', 'RedHat', 'Suse']
-
-    # - name: Make sure /etc/resolv.conf has at least one nameserver
-      # command: grep ^nameserver /etc/resolv.conf
-      # register: grep_nameserver
-      # changed_when: False
-      # failed_when: False
-    # - name: "WARNING: No nameserver configured, adding 208.67.222.222 to /etc/resolv.conf"
-      # sudo: yes
-      # lineinfile:
-        # line: nameserver 208.67.222.222
-        # dest: /etc/resolv.conf
-        # insertafter: EOF
-        # state: present
-      # when: grep_nameserver.rc == 1
+      when: ansible_os_family not in ['Debian', 'RedHat', 'Suse', 'FreeBSD']
 
     - name: Group servers per OS to apply OS specific steps
       group_by: key={{ ansible_distribution }}
@@ -56,8 +42,8 @@
     - name: Make sure hostname is registered in /etc/hosts
       command: grep -w {{ ansible_hostname }} /etc/hosts
       register: grep_hosts
-      changed_when: False
-      failed_when: False
+      changed_when: false
+      failed_when: false
 
     - name: "WARNING: hostname not in /etc/hosts, adding temporarily (so that apt-get install won't break in post installation due to FQDNLookup=True)"
       lineinfile:
@@ -96,7 +82,7 @@
       when: not st.stat.exists  # => collectd wasn't previously installed
 
   handlers:
-    # this is a handler so that in combination with --force-handlers it also runs if a failure occured
+
     - name: Remove localhost from /etc/hosts
       lineinfile:
         line: "127.0.0.1 {{ ansible_hostname }}"
@@ -120,30 +106,61 @@
   gather_facts: no
   sudo: yes
   tasks:
-    - name: This playbook has only been tested with CentOS, RHEL
+
+    - name: This playbook has only been tested with CentOS, RHEL, Amazon
       debug:
         msg: "Not sure if {{ ansible_distribution }} is supported, will try and hope for the best."
-      when: ansible_distribution not in ['CentOS', 'RedHat']
+      when: ansible_distribution not in ['CentOS', 'RedHat', 'Amazon']
 
     - name: Check if /etc/yum.repos.d/epel.repo exists
       stat: path=/etc/yum.repos.d/epel.repo
       register: st
-    - name: Install epel-release if /etc/yum.repos.d/epel.repo missing
+
+    - name: File /etc/yum.repos.d missing, check if epel-release package is available
+      command: yum list epel-release
+      failed_when: false
+      changed_when: false
+      register: list_epel_release
+      when: not st.stat.exists
+
+    - name: Install epel-release if /etc/yum.repos.d/epel.repo missing and epel-release package available
       yum:
         name: epel-release
         state: present
-      when: not st.stat.exists
+      when: not st.stat.exists and list_epel_release.rc == 0
+      notify: Disable epel repo if it was initially disabled
+
+    - name: Add epel repo manually if /etc/yum.repos.d/epel.repo missing and epel-release package not available (no gpg checks)
+      template:
+        src: epel.repo.j2
+        dest: /etc/yum.repos.d/epel.repo
+      when: not st.stat.exists and list_epel_release.rc != 0
+      notify: Remove epel repo if manually added
+
     - name: Install collectd from epel repo
       yum:
         name: collectd
         state: present
         enablerepo: epel
-    - name: Disable epel repository if it was initially disabled
-      ini_file: dest=/etc/yum.repos.d/epel.repo
-        section=epel
-        option=enabled
-        value=0
-      when: not st.stat.exists
+
+    - name: Install libselinux-python if missing in case the machine has SELinux
+      yum:
+        name: libselinux-python
+        state: present
+
+  handlers:
+
+    - name: Disable epel repo if it was initially disabled
+      ini_file:
+        dest: /etc/yum.repos.d/epel.repo
+        section: epel
+        option: enabled
+        value: 0
+
+    - name: Remove epel repo if manually added
+      file:
+        dest: /etc/yum.repos.d/epel.repo
+        state: absent
 
 
 - name: Install CollectD for Suse based repos
@@ -151,20 +168,47 @@
   gather_facts: no
   sudo: yes
   tasks:
+
     - name: "Only openSuSE has collectd in main repos, adding YaST:Web/SLE_11_SP3"
       zypper_repository:
         repo: "http://download.opensuse.org/repositories/YaST:Web/SLE_11_SP3/YaST:Web.repo"
         state: present
       when: ansible_distribution != 'Opensuse'
+
     - name: Import repo gpg key
       rpm_key:
         key: "http://download.opensuse.org/repositories/YaST:/Web/SLE_11_SP3/repodata/repomd.xml.key"  # check out https://github.com/ansible/ansible-modules-extras/issues/65
         state: present
       when: ansible_distribution != 'Opensuse'
+
     - name: Try to install collectd from the repo
       zypper:
         name: collectd
         state: present
+
+
+- name: Install CollectD for FreeBSD
+  hosts: FreeBSD
+  gather_facts: no
+  sudo: yes
+  tasks:
+
+    - name: Install bash and portmaster
+      # using command because pkgng module breaks if pkg needs to be updated
+      command: pkg install -y bash portmaster
+
+    - name: Create /var/db/ports/net-mgmt_collectd5/ directory
+      file:
+        path: /var/db/ports/net-mgmt_collectd5
+        state: directory
+
+    - name: Copy options file for installation
+      copy:
+        src: freebsd_options
+        dest: /var/db/ports/net-mgmt_collectd5/options
+
+    - name: Install collectd with portmaster
+      shell: "portmaster -G -w --no-confirm -y -d -mBATCH=yes < /dev/null /usr/ports/net-mgmt/collectd5"
 
 
 - name: Configure and start collectd
@@ -174,34 +218,6 @@
   vars:
     monitor: monitor1.mist.io
   tasks:
-
-    - name: Check if /etc/cron.d/ exists
-      stat: path=/etc/cron.d
-      register: cron_d
-
-    - name: Set up cron entry for mistio-collectd to start at boot
-      cron:
-        name: mistio-collectd
-        user: root
-        special_time: reboot
-        job: /opt/mistio-collectd/collectd.sh start
-        cron_file: mistio-collectd
-      when: cron_d.stat.exists
-
-    - name: Set up cron entry to restart mistio-collectd daily
-      cron:
-        name: mistio-collectd daily restart to resolve monitor hostname
-        user: root
-        minute: 0
-        hour: 0
-        job: /opt/mistio-collectd/collectd.sh restart
-        cron_file: mistio-collectd
-      when: cron_d.stat.exists
-
-    - name: /etc/cron.d missing
-      debug:
-        msg: seriously?
-      when: not cron_d.stat.exists
 
     - name: Create /opt/mistio-collectd/ directory
       file:
@@ -226,3 +242,52 @@
 
     - name: Start collectd
       shell: /opt/mistio-collectd/collectd.sh start
+
+    - name: Check if /etc/cron.d/ exists
+      stat: path=/etc/cron.d
+      register: cron_d
+
+    - name: Check if /etc/crontab exists
+      stat: path=/etc/crontab
+      register: crontab
+      when: not cron_d.stat.exists
+
+    - name: Set up /etc/cron.d/mistio-collectd entry to restart mistio-collectd daily
+      cron:
+        name: mistio-collectd daily restart to resolve monitor hostname
+        user: root
+        minute: 0
+        hour: 0
+        job: /opt/mistio-collectd/collectd.sh restart
+        cron_file: mistio-collectd
+      when: cron_d.stat.exists
+
+    - name: Set up /etc/cron.d/mistio-collectd entry to start mistio-collectd at reboot
+      cron:
+        name: mistio-collectd
+        user: root
+        special_time: reboot
+        job: /opt/mistio-collectd/collectd.sh start
+        cron_file: mistio-collectd
+      when: cron_d.stat.exists
+
+    - name: Set up /etc/crontab entry to restart mistio-collectd daily (/etc/cron.d/ missing)
+      lineinfile:  # ugly hack because the cron module only supports user crontabs and /etc/cron.d/ entries
+        line: "0 0 * * *   root /opt/mistio-collectd/collectd.sh restart"
+        dest: /etc/crontab
+        insertafter: EOF
+        state: present
+      when: not cron_d.stat.exists and crontab.stat.exists
+
+    - name: Set up /etc/crontab entry to start mistio-collectd at reboot (/etc/cron.d/ missing)
+      lineinfile:  # ugly hack because the cron module only supports user crontabs and /etc/cron.d/ entries
+        line: "@reboot root /opt/mistio-collectd/collectd.sh start"
+        dest: /etc/crontab
+        insertafter: EOF
+        state: present
+      when: not cron_d.stat.exists and crontab.stat.exists
+
+    - name: /etc/cron.d/ and /etc/crontab missing
+      fail:
+        msg: seriously?
+      when: not cron_d.stat.exists and not crontab.stat.exists

@@ -1,0 +1,7 @@
+[epel]
+name=Extra Packages for Enterprise Linux $releasever - $basearch
+mirrorlist=https://mirrors.fedoraproject.org/mirrorlist?repo=epel-$releasever&arch=$basearch
+baseurl=http://download.fedoraproject.org/pub/epel/{{ ansible_distribution_major_version }}/$basearch
+failovermethod=priority
+enabled=1
+gpgcheck=0

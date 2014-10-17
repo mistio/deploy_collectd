@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-COLLECTD=/usr/sbin/collectd
+COLLECTD=collectd  # /usr/sbin/collectd on linux, /usr/local/sbin/collectd on freebsd
 CONFIG_FILE=/opt/mistio-collectd/collectd.conf
 PID_FILE=/opt/mistio-collectd/pid
 
