@@ -12,6 +12,7 @@ VENV_VERSION = "1.11.6"
 ANSIBLE_VERSION = "1.7.2"
 PYPI_URL = "https://pypi.python.org/packages/source/"
 PLAYBOOK_PATH = "ansible/main.yml"
+DEPLOY_COLLETD_BRANCH = "master"
 
 
 def shellcmd(cmd, exit_on_error=True, verbose=True):
@@ -116,13 +117,15 @@ def main():
         print "*** CollectD deployment playbook is locally available ***"
     else:
         print "*** Fetching mistio/deploy_collectd repo tarball ***"
-        url = "https://github.com/mistio/deploy_collectd/archive/master.tar.gz"
-        shellcmd("%s %s" % (get_url, url))
+        base_url = "https://github.com/mistio/deploy_collectd"
+        shellcmd("%s %s/archive/%s.tar.gz" % (get_url, base_url,
+                                              DEPLOY_COLLETD_BRANCH))
 
         print "*** Extracting mistio/deploy_collectd tarball ***"
-        shellcmd("tar -xzf master.tar.gz")
+        shellcmd("tar -xzf %s.tar.gz" % DEPLOY_COLLETD_BRANCH)
 
-        playbook_path = "deploy_collectd-master/%s" % PLAYBOOK_PATH
+        playbook_path = "deploy_collectd-%s/%s" % (DEPLOY_COLLETD_BRANCH,
+                                                   PLAYBOOK_PATH)
 
     print "*** Running CollectD deployment playbook against localhost ***"
     shellcmd("env/bin/ansible-playbook %s -e 'uuid=%s password=%s monitor=%s'"
