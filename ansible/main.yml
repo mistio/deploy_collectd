@@ -230,8 +230,8 @@
         dest: /opt/mistio-collectd/collectd.conf
 
     - name: Generate collectd init script
-      copy:
-        src: collectd.sh
+      template:
+        src: collectd.sh.j2
         dest: /opt/mistio-collectd/collectd.sh
         mode: 0755
 

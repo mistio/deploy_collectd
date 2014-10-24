@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
-COLLECTD=collectd  # /usr/sbin/collectd on linux, /usr/local/sbin/collectd on freebsd
+{% if ansible_distribution == 'FreeBSD' %}
+COLLECTD=/usr/local/sbin/collectd
+{% else %}
+COLLECTD=/usr/sbin/collectd
+{% endif %}
 CONFIG_FILE=/opt/mistio-collectd/collectd.conf
 PID_FILE=/opt/mistio-collectd/pid
 
