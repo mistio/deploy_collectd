@@ -11,7 +11,7 @@ TMP_DIR = "/tmp/mistio"
 VENV_VERSION = "1.11.6"
 ANSIBLE_VERSION = "1.7.2"
 PYPI_URL = "https://pypi.python.org/packages/source/"
-PLAYBOOK_PATH = "ansible/main.yml"
+PLAYBOOK_PATH = "ansible/enable.yml"
 DEPLOY_COLLETD_BRANCH = "master"
 
 
@@ -41,7 +41,7 @@ def main():
     parser.add_argument(
         "--no-check-certificate", action='store_true',
         help="Don't verify SSL certificates when "
-             "get_urling dependencies from HTTPS."
+             "fetching dependencies from HTTPS."
     )
     args = parser.parse_args()
 

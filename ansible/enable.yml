@@ -97,8 +97,11 @@
   tasks:
     - name: Install collectd
       yum:
-        name: collectd
+        name: "{{ item }}"
         state: present
+      with_items:
+        - collectd
+        - collectd-ping
 
 
 - name: Install CollectD for RedHat based distros (excluding Fedora)
@@ -116,7 +119,7 @@
       stat: path=/etc/yum.repos.d/epel.repo
       register: st
 
-    - name: File /etc/yum.repos.d missing, check if epel-release package is available
+    - name: File /etc/yum.repos.d/epel.repo missing, check if epel-release package is available
       command: yum list epel-release
       failed_when: false
       changed_when: false
@@ -132,7 +135,7 @@
 
     - name: Add epel repo manually if /etc/yum.repos.d/epel.repo missing and epel-release package not available (no gpg checks)
       template:
-        src: epel.repo.j2
+        src: templates/epel.repo.j2
         dest: /etc/yum.repos.d/epel.repo
       when: not st.stat.exists and list_epel_release.rc != 0
       notify: Remove epel repo if manually added
@@ -142,6 +145,13 @@
         name: collectd
         state: present
         enablerepo: epel
+
+    - name: Install collectd ping plugin from epel repo
+      yum:
+        name: collectd-ping
+        state: present
+        enablerepo: epel
+      ignore_errors: yes
 
     - name: Install libselinux-python if missing in case the machine has SELinux
       yum:
@@ -181,9 +191,14 @@
         state: present
       when: ansible_distribution != 'Opensuse'
 
-    - name: Try to install collectd from the repo
+    - name: Install collectd from the repo
       zypper:
         name: collectd
+        state: present
+
+    - name: Install collectd-plugin-python from the repo
+      zypper:
+        name: collectd-plugin-python
         state: present
 
 
@@ -204,7 +219,7 @@
 
     - name: Copy options file for installation
       copy:
-        src: freebsd_options
+        src: files/freebsd_options
         dest: /var/db/ports/net-mgmt_collectd5/options
 
     - name: Install collectd with portmaster
@@ -224,14 +239,19 @@
         path: /opt/mistio-collectd
         state: directory
 
+    - name: Store deploy_collectd playbook version (to be able to properly disable monitoring in the future)
+      copy:
+        src: files/version
+        dest: /opt/mistio-collectd/version
+
     - name: Generate collectd config file
       template:
-        src: collectd.conf.j2
+        src: templates/collectd.conf.j2
         dest: /opt/mistio-collectd/collectd.conf
 
     - name: Generate collectd init script
       template:
-        src: collectd.sh.j2
+        src: templates/collectd.sh.j2
         dest: /opt/mistio-collectd/collectd.sh
         mode: 0755
 
