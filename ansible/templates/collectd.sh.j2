@@ -1,4 +1,8 @@
-#!/usr/bin/env bash
+{% if ansible_distribution == 'FreeBSD' %}
+#!/usr/local/bin/bash
+{% else %}
+#!/bin/bash
+{% endif %}
 
 {% if ansible_distribution == 'FreeBSD' %}
 COLLECTD=/usr/local/sbin/collectd
