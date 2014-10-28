@@ -287,7 +287,7 @@
         name: mistio-collectd
         user: root
         special_time: reboot
-        job: /opt/mistio-collectd/collectd.sh start
+        job: sleep 5; /opt/mistio-collectd/collectd.sh start  # sleep 5 because network isn't always initialized at this point
         cron_file: mistio-collectd
       when: cron_d.stat.exists
 
@@ -301,7 +301,7 @@
 
     - name: Set up /etc/crontab entry to start mistio-collectd at reboot (/etc/cron.d/ missing)
       lineinfile:  # ugly hack because the cron module only supports user crontabs and /etc/cron.d/ entries
-        line: "@reboot root /opt/mistio-collectd/collectd.sh start"
+        line: "@reboot root sleep 5; /opt/mistio-collectd/collectd.sh start"  # sleep 5 because network isn't always initialized at this point
         dest: /etc/crontab
         insertafter: EOF
         state: present
