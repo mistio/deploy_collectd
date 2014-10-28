@@ -7,129 +7,27 @@
       shell: /opt/mistio-collectd/collectd.sh stop
       ignore_errors: yes
 
-    - name: Discover what version of the install.yml enabled monitoring in the machine
-      command: cat /opt/mistio-collectd/version
-      failed_when: false
-      register: cat_version
-
-    - name: Found collectd version
-      set_fact:
-        version: "{{ cat_version.stdout }}"
-      when: cat_version.rc == 0
-
-    - name: Didn't find collectd version
-      set_fact:
-        version: pre_ansible
-      when: cat_version.rc != 0
-
-    - name: Echo deploy_collectd playbook version
-      debug:
-        msg: "{{ version }}"
-
-    - name: Group servers per installation playbook version to properly disable monitoring
-      group_by: key="{{ version }}"
-
-
-- name: Disable mist.io collectd if enabled prior to ansible playbook implementation
-  hosts: pre_ansible
-  gather_facts: no
-  sudo: yes
-  tasks:
-
-    - name: Check if /etc/cron.d/mistio-collectd exists
-      stat: path=/etc/cron.d/mistio-collectd
+    - name: Remove /etc/cron.d/mistio-collectd
+      file:
+        path: /etc/cron.d/mistio-collectd
+        state: absent
       register: cron_d
 
-    - name: Mistio cron entries must be in /etc/cron.d/mistio-collectd
-      set_fact:
-        cron_file: /etc/cron.d/mistio-collectd
-      when: cron_d.stat.exists
-
-    - name: Check if /etc/crontab exists
-      stat: path=/etc/crontab
+    - name: Remove mistio entries from /etc/crontab if /etc/cron.d/mistio-collectd not found
+      replace:
+        dest: /etc/crontab
+        regexp: "^.*mistio.*$"
       register: crontab
-      when: not cron_d.stat.exists
+      when: not cron_d.changed
 
-    - name: Mistio cron entries must be in /etc/crontab
-      set_fact:
-        cron_file: /etc/crontab
-      when: not cron_d.stat.exists and crontab.stat.exists
-
-    - name: Remove cron entry that restarts collectd daily
-      lineinfile:
-        line: "0 0 * * *   root /opt/mistio-collectd/collectd.sh restart"
-        dest: "{{ cron_file }}"
-        state: absent
-      when: cron_d.stat.exists or crontab.stat.exists
-
-    - name: Remove cron entry that starts collectd at boot
-      lineinfile:
-        line: "@reboot root /opt/mistio-collectd/collectd.sh start"
-        dest: "{{ cron_file }}"
-        state: absent
-      when: cron_d.stat.exists or crontab.stat.exists
-
-    - name: Remove /etc/rc.local entry that starts collectd at boot
-      lineinfile:
-        line: /opt/mistio-collectd/collectd.sh start
+    - name: Remove entry from /etc/rc.local if none found in /etc/crontab or /etc/cron.d/mistio-collectd
+      replace:
         dest: /etc/rc.local
-        state: absent
-      when: not cron_d.stat.exists and not crontab.stat.exists
+        regexp: "^.*mistio.*$"
+      register: rc_local
+      when: not cron_d.changed and not crontab.changed
 
-
-- name: Disable mist.io collectd if enabled with playbook version 0.1.0
-  hosts: 0.1.*
-  gather_facts: no
-  sudo: yes
-  tasks:
-
-    - name: Check if /etc/cron.d/ exists
-      stat: path=/etc/cron.d
-      register: cron_d
-
-    - name: Check if /etc/crontab exists
-      stat: path=/etc/crontab
-      register: crontab
-      when: not cron_d.stat.exists
-
-    - name: Remove /etc/cron.d/mistio-collectd entry to restart mistio-collectd daily
-      cron:
-        name: mistio-collectd daily restart to resolve monitor hostname
-        user: root
-        minute: 0
-        hour: 0
-        job: /opt/mistio-collectd/collectd.sh restart
-        cron_file: mistio-collectd
-        state: absent
-      when: cron_d.stat.exists
-
-    - name: Remove /etc/cron.d/mistio-collectd entry to start mistio-collectd at reboot
-      cron:
-        name: mistio-collectd
-        user: root
-        special_time: reboot
-        job: /opt/mistio-collectd/collectd.sh start
-        cron_file: mistio-collectd
-        state: absent
-      when: cron_d.stat.exists
-
-    - name: Remove /etc/crontab entry to restart mistio-collectd daily (/etc/cron.d/ missing)
-      lineinfile:  # ugly hack because the cron module only supports user crontabs and /etc/cron.d/ entries
-        line: "0 0 * * *   root /opt/mistio-collectd/collectd.sh restart"
-        dest: /etc/crontab
-        insertafter: EOF
-        state: absent
-      when: not cron_d.stat.exists and crontab.stat.exists
-
-    - name: Remove /etc/crontab entry to start mistio-collectd at reboot (/etc/cron.d/ missing)
-      lineinfile:  # ugly hack because the cron module only supports user crontabs and /etc/cron.d/ entries
-        line: "@reboot root /opt/mistio-collectd/collectd.sh start"
-        dest: /etc/crontab
-        insertafter: EOF
-        state: absent
-      when: not cron_d.stat.exists and crontab.stat.exists
-
-    - name: /etc/cron.d/ and /etc/crontab missing
+    - name: Fail if no cronjobs or init commands could be found in order to be removed
       fail:
-        msg: seriously?
-      when: not cron_d.stat.exists and not crontab.stat.exists
+        msg: /etc/cron.d/mistio-collectd missing and no relevant entries found in either /etc/crontab or /etc/rc.local
+      when: not cron_d.changed and not crontab.changed and not rc_local.changed
