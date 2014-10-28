@@ -6,9 +6,12 @@ LoadPlugin uuid
     UUIDFile "/opt/mistio-collectd/uuid"
 </Plugin>
 
-LoadPlugin syslog
-<Plugin syslog>
+LoadPlugin logfile
+<Plugin logfile>
+    File "/opt/mistio-collectd/log"
     LogLevel info
+    Timestamp true
+    PrintSeverity true
 </Plugin>
 
 LoadPlugin cpu
