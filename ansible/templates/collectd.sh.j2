@@ -31,6 +31,7 @@ stop() {
   fi
   echo 'Stopping mist.io collectd'
   kill $(cat $PID_FILE) && rm -f $PID_FILE
+  sleep 1
 }
 
 status() {
