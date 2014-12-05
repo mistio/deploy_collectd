@@ -62,6 +62,8 @@
       apt:
         update_cache: yes
         cache_valid_time: 3600
+      ignore_errors: yes
+
     - name: Install collectd
       apt:
         pkg: collectd
