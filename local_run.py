@@ -3,7 +3,6 @@
 
 import os
 import sys
-import argparse
 import subprocess
 
 
@@ -28,22 +27,38 @@ def shellcmd(cmd, exit_on_error=True, verbose=True):
 
 def main():
     """Deploy CollectD on localhost for monitoring with mist.io"""
-    parser = argparse.ArgumentParser(
-        description="Deploy mist.io CollectD on localhost.",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-    parser.add_argument("uuid", help="Machine uuid assigned by mist.io.")
-    parser.add_argument("password",
-                        help="Machine password assigned by mist.io, "
-                             "used to sign/encrypt CollectD data.")
-    parser.add_argument("-m", "--monitor-server", default="monitor1.mist.io",
-                        help="Remote CollectD server to send data to.")
-    parser.add_argument(
-        "--no-check-certificate", action='store_true',
-        help="Don't verify SSL certificates when "
-             "fetching dependencies from HTTPS."
-    )
-    args = parser.parse_args()
+    try:
+        import argparse
+        parser = argparse.ArgumentParser(
+            description="Deploy mist.io CollectD on localhost.",
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        )
+        parser.add_argument("uuid", help="Machine uuid assigned by mist.io.")
+        parser.add_argument("password",
+                            help="Machine password assigned by mist.io, "
+                                 "used to sign/encrypt CollectD data.")
+        parser.add_argument("-m", "--monitor-server", default="monitor1.mist.io",
+                            help="Remote CollectD server to send data to.")
+        parser.add_argument(
+            "--no-check-certificate", action='store_true',
+            help="Don't verify SSL certificates when "
+                 "fetching dependencies from HTTPS."
+        )
+        args = parser.parse_args()
+
+    except ImportError:
+        # Python 2.6 does not have argparse
+        from optparse import OptionParser
+        parser = OptionParser()
+
+        parser.add_option("--uuid", dest='uuid')
+
+        parser.add_option("-m", default="monitor1.mist.io", dest='monitor_server')
+        parser.add_option("--no-check-certificate", action='store_true', default=False)
+
+        (args, list_args) = parser.parse_args()
+        args.password = list_args[0]
+        args.uuid = list_args[1]
 
     python = sys.executable
 
