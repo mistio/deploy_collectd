@@ -48,16 +48,12 @@ def parse_args():
 
     except ImportError:
         # Python 2.6 does not have argparse
-        from optparse import OptionParser
-        parser = OptionParser()
-
-        parser.add_option("--uuid", dest="uuid")
-
+        import optparse
+        parser = optparse.OptionParser("usage: %prog [options] uuid password")
         parser.add_option("-m", default="monitor1.mist.io",
                           dest="monitor_server")
         parser.add_option("--no-check-certificate", action="store_true",
                           default=False)
-
         (args, list_args) = parser.parse_args()
         args.password = list_args[0]
         args.uuid = list_args[1]
@@ -68,9 +64,7 @@ def main():
     """Deploy CollectD on localhost for monitoring with mist.io"""
 
     args = parse_args()
-
     python = sys.executable
-
     # check if deploy_collectd repo is locally available
     playbook_path = ""
     if __file__ != '<stdin>':
