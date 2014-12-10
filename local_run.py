@@ -55,8 +55,8 @@ def parse_args():
         parser.add_option("--no-check-certificate", action="store_true",
                           default=False)
         (args, list_args) = parser.parse_args()
-        args.password = list_args[0]
-        args.uuid = list_args[1]
+        args.uuid = list_args[0]
+        args.password = list_args[1]
     return args
 
 
@@ -74,7 +74,8 @@ def main():
             playbook_path = ""
 
     print "*** Will work in '%s' ***" % TMP_DIR
-    os.mkdir(TMP_DIR)
+    if not os.path.exists(TMP_DIR):
+        os.mkdir(TMP_DIR)
     os.chdir(TMP_DIR)
     if not shellcmd("command -v wget", False, False):
         # use wget
