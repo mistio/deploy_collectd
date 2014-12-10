@@ -25,8 +25,7 @@ def shellcmd(cmd, exit_on_error=True, verbose=True):
     return return_code
 
 
-def main():
-    """Deploy CollectD on localhost for monitoring with mist.io"""
+def parse_args():
     try:
         import argparse
         parser = argparse.ArgumentParser(
@@ -37,7 +36,8 @@ def main():
         parser.add_argument("password",
                             help="Machine password assigned by mist.io, "
                                  "used to sign/encrypt CollectD data.")
-        parser.add_argument("-m", "--monitor-server", default="monitor1.mist.io",
+        parser.add_argument("-m", "--monitor-server",
+                            default="monitor1.mist.io",
                             help="Remote CollectD server to send data to.")
         parser.add_argument(
             "--no-check-certificate", action='store_true',
@@ -51,14 +51,23 @@ def main():
         from optparse import OptionParser
         parser = OptionParser()
 
-        parser.add_option("--uuid", dest='uuid')
+        parser.add_option("--uuid", dest="uuid")
 
-        parser.add_option("-m", default="monitor1.mist.io", dest='monitor_server')
-        parser.add_option("--no-check-certificate", action='store_true', default=False)
+        parser.add_option("-m", default="monitor1.mist.io",
+                          dest="monitor_server")
+        parser.add_option("--no-check-certificate", action="store_true",
+                          default=False)
 
         (args, list_args) = parser.parse_args()
         args.password = list_args[0]
         args.uuid = list_args[1]
+    return args
+
+
+def main():
+    """Deploy CollectD on localhost for monitoring with mist.io"""
+
+    args = parse_args()
 
     python = sys.executable
 
