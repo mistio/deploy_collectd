@@ -30,9 +30,9 @@ stop() {
   echo 'Stopping mist.io collectd'
   kill $(cat $PID_FILE) && rm -f $PID_FILE
   sleep 2
-  if pgrep -f mistio-collectd; then
+  if pgrep -f mistio-collectd/pid; then
     echo 'Killing rogue collectd instances'
-    pgrep -f mistio-collectd | xargs kill -9
+    pgrep -f mistio-collectd/pid | xargs kill -9
   fi
 }
 
