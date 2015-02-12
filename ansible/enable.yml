@@ -274,6 +274,12 @@
       register: crontab
       when: not cron_d.stat.exists
 
+    - name: Remove previous /etc/cron.d/mistio-collectd file if present
+      file:
+        path: /etc/cron.d/mistio-collectd
+        state: absent
+      when: cron_d.stat.exists
+
     - name: Set up /etc/cron.d/mistio-collectd entry to restart mistio-collectd daily
       cron:
         name: mistio-collectd daily restart to resolve monitor hostname
@@ -292,6 +298,13 @@
         job: sleep 5; /opt/mistio-collectd/collectd.sh start  # sleep 5 because network isn't always initialized at this point
         cron_file: mistio-collectd
       when: cron_d.stat.exists
+
+    - name: Remove mistio entries from /etc/crontab
+      replace:
+        dest: /etc/crontab
+        regexp: "^.*mistio.*$"
+      register: crontab
+      when: not cron_d.stat.exists and crontab.stat.exists
 
     - name: Set up /etc/crontab entry to restart mistio-collectd daily (/etc/cron.d/ missing)
       lineinfile:  # ugly hack because the cron module only supports user crontabs and /etc/cron.d/ entries
