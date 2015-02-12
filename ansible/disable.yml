@@ -26,8 +26,3 @@
         regexp: "^.*mistio.*$"
       register: rc_local
       when: not cron_d.changed and not crontab.changed
-
-    - name: Fail if no cronjobs or init commands could be found in order to be removed
-      fail:
-        msg: /etc/cron.d/mistio-collectd missing and no relevant entries found in either /etc/crontab or /etc/rc.local
-      when: not cron_d.changed and not crontab.changed and not rc_local.changed
