@@ -3,6 +3,7 @@
 
 import os
 import sys
+import shutil
 import tempfile
 import subprocess
 
@@ -152,6 +153,7 @@ def main():
              % (playbook_path, args.uuid, args.password, args.monitor_server))
 
     print "*** CollectD deployment playbook completed successfully ***"
+    shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 if __name__ == "__main__":
