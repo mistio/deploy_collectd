@@ -3,10 +3,10 @@
 
 import os
 import sys
+import tempfile
 import subprocess
 
 
-TMP_DIR = "/tmp/mistio"
 VENV_VERSION = "1.11.6"
 ANSIBLE_VERSION = "1.7.2"
 PYPI_URL = "https://pypi.python.org/packages/source/"
@@ -73,10 +73,11 @@ def main():
         if not os.path.exists(playbook_path):
             playbook_path = ""
 
-    print "*** Will work in '%s' ***" % TMP_DIR
-    if not os.path.exists(TMP_DIR):
-        os.mkdir(TMP_DIR)
-    os.chdir(TMP_DIR)
+    tmp_dir = tempfile.mkdtemp()
+    print "*** Will work in '%s' ***" % tmp_dir
+    if not os.path.exists(tmp_dir):
+        os.mkdir(tmp_dir)
+    os.chdir(tmp_dir)
     if not shellcmd("command -v wget", False, False):
         # use wget
         get_url = "wget"
