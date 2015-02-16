@@ -262,6 +262,10 @@
         content: "{{ uuid }}"
         dest: /opt/mistio-collectd/uuid
 
+    - name: Try to kill any running mist.io collectd's (if this isn't the first installation)
+      shell: /opt/mistio-collectd/collectd.sh stop
+      ignore_errors: yes
+
     - name: Start collectd
       shell: /opt/mistio-collectd/collectd.sh start
 
