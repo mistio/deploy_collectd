@@ -63,6 +63,23 @@
         update_cache: yes
         cache_valid_time: 3600
       ignore_errors: yes
+      register: apt_res
+
+    - name: Take a nap
+      pause: minutes 2
+      when: apt_res | failed
+
+    - name: apt-get -f install
+      command: apt-get -f -y install
+      ignore_errors: yes
+      when: apt_res | failed
+
+    - name: Update package list
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      ignore_errors: yes
+      when: apt_res | failed
 
     - name: Install collectd
       apt:
