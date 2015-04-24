@@ -300,6 +300,7 @@
         path: /etc/cron.d/mistio-collectd
         state: absent
       when: cron_d.stat.exists
+      ignore_errors: yes
 
     - name: Set up /etc/cron.d/mistio-collectd entry to restart mistio-collectd daily
       cron:
@@ -324,7 +325,6 @@
       replace:
         dest: /etc/crontab
         regexp: "^.*mistio.*$"
-      register: crontab
       when: not cron_d.stat.exists and crontab.stat.exists
 
     - name: Set up /etc/crontab entry to restart mistio-collectd daily (/etc/cron.d/ missing)
