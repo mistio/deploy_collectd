@@ -7,6 +7,7 @@ import shutil
 import tempfile
 import subprocess
 
+from urlparse import urljoin
 
 VENV_VERSION = "1.11.6"
 ANSIBLE_VERSION = "1.7.2"
@@ -93,7 +94,7 @@ def main():
         sys.exit("ERROR: Neither 'curl' nor 'wget' found, exiting.")
 
     print "*** Fetching virtualenv tarball ***"
-    url = "%s/v/virtualenv/virtualenv-%s.tar.gz" % (PYPI_URL, VENV_VERSION)
+    url = urljoin(PYPI_URL, "v/virtualenv/virtualenv-%s.tar.gz" % VENV_VERSION)
     shellcmd("%s %s" % (get_url, url))
 
     print "*** Extracting virtualenv tarball ***"
