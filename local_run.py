@@ -107,7 +107,7 @@ def main():
     shellcmd("env/bin/pip install virtualenv-%s.tar.gz" % VENV_VERSION)
 
     print "*** Fetching ansible tarball ***"
-    url = "%s/a/ansible/ansible-%s.tar.gz" % (PYPI_URL, ANSIBLE_VERSION)
+    url = urljoin(PYPI_URL, "a/ansible/ansible-%s.tar.gz" % ANSIBLE_VERSION)
     shellcmd("%s %s" % (get_url, url))
 
     print "*** Extracting ansible tarball ***"
