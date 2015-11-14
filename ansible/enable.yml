@@ -349,5 +349,6 @@
       when: not cron_d.stat.exists and not crontab.stat.exists
 
     - name: Chown .ansible tmp dir permissions
-      shell: chown -R $SUDO_UID:$SUDO_GID $HOME/.ansible
+      shell: "chown -R $SUDO_UID:$SUDO_GID $HOME/.ansible"
+      ignore_errors: yes
 
