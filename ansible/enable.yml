@@ -348,7 +348,5 @@
         msg: seriously?
       when: not cron_d.stat.exists and not crontab.stat.exists
 
-    - name: Chown .ansible tmp dir permissions
-      shell: "chown -R $SUDO_UID:$SUDO_GID $HOME/.ansible"
-      ignore_errors: yes
-
+    - name: Fix ansible tmp dir permissions in case playbook was run with sudo
+      shell: '[ -n "$SUDO_UID" ] && chown -R $SUDO_UID:$SUDO_GID $HOME/.ansible || true'

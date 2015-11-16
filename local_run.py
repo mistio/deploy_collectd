@@ -133,8 +133,7 @@ def main():
     with open("ansible.cfg", "w") as fobj:
         fobj.write("[defaults]\n"
                    "hostfile = inventory\n"
-                   "nocows = 1\n"
-                   "remote_tmp = $HOME/.ansible/tmp\n")
+                   "nocows = 1\n")
 
     if playbook_path:
         print "*** CollectD deployment playbook is locally available ***"
