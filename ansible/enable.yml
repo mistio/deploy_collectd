@@ -251,6 +251,7 @@
   sudo: yes
   vars:
     monitor: monitor1.mist.io
+    port: 25826
   tasks:
 
     - name: Create /opt/mistio-collectd/ directory

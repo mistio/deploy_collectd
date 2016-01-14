@@ -32,7 +32,7 @@ LoadPlugin ping
 LoadPlugin network
 <Plugin network>
     TimeToLive 128
-    <Server "{{ monitor }}" "25826">
+    <Server "{{ monitor }}" "{{ port }}">
         SecurityLevel Encrypt
         Username "{{ uuid }}"
         Password "{{ password }}"
