@@ -41,6 +41,8 @@ def parse_args():
         parser.add_argument("-m", "--monitor-server",
                             default="monitor1.mist.io",
                             help="Remote CollectD server to send data to.")
+        parser.add_argument("-p", "--port", default=25826, type=int,
+                            help="Remote CollectD server port.")
         parser.add_argument(
             "--no-check-certificate", action='store_true',
             help="Don't verify SSL certificates when "
@@ -54,6 +56,7 @@ def parse_args():
         parser = optparse.OptionParser("usage: %prog [options] uuid password")
         parser.add_option("-m", default="monitor1.mist.io",
                           dest="monitor_server")
+        parser.add_option("-p", "--port", default=25826, type=int)
         parser.add_option("--no-check-certificate", action="store_true",
                           default=False)
         (args, list_args) = parser.parse_args()
@@ -150,8 +153,10 @@ def main():
                                                    PLAYBOOK_PATH)
 
     print "*** Running CollectD deployment playbook against localhost ***"
-    shellcmd("env/bin/ansible-playbook %s -e 'uuid=%s password=%s monitor=%s'"
-             % (playbook_path, args.uuid, args.password, args.monitor_server))
+    params = "uuid=%s password=%s monitor=%s port=%s" % (
+        args.uuid, args.password, args.monitor_server, args.port
+    )
+    shellcmd("env/bin/ansible-playbook %s -e '%s'" % (playbook_path, params))
 
     print "*** CollectD deployment playbook completed successfully ***"
     shutil.rmtree(tmp_dir, ignore_errors=True)
