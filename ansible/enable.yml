@@ -19,7 +19,7 @@
 
     - name: Check support for OS family
       fail: msg="Distro {{ ansible_distribution }} not supported, please open a support ticket in https://github.com/mistio/deploy_collectd"
-      when: ansible_os_family not in ['Debian', 'RedHat', 'Suse', 'FreeBSD']
+      when: ansible_os_family not in ['Debian', 'RedHat', 'Suse', 'FreeBSD', 'SHMZ']
 
     - name: Group servers per OS to apply OS specific steps
       group_by: key={{ ansible_distribution }}
@@ -124,7 +124,7 @@
 
 
 - name: Install CollectD for RedHat based distros (excluding Fedora)
-  hosts: RedHat_based:!Fedora
+  hosts: RedHat_based:SHMZ:!Fedora
   gather_facts: no
   sudo: yes
   tasks:
