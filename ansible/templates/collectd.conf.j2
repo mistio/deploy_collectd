@@ -42,5 +42,23 @@ LoadPlugin network
     ReportStats false
 </Plugin>
 
+# get disk metrics for these disks only (regexp)
+<Plugin "disk">
+  Disk "/sda[1]/"
+  Disk "/xvda[1]/"
+  Disk "/hda[1]/"
+  IgnoreSelected false
+</Plugin>
+
+# get interface metrics for these interfaces only
+<Plugin "interface">
+  Interface "eth0"
+  Interface "eth1"
+  Interface "vnet0"
+  Interface "virbr0"
+  Interface "docker0"
+  IgnoreSelected false
+</Plugin>
+
 Include "/opt/mistio-collectd/plugins/mist-python/include.conf"
 Include "/opt/mistio-collectd/collectd.custom.conf"
