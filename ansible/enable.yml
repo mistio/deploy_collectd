@@ -33,6 +33,9 @@
   gather_facts: no
   sudo: yes
   tasks:
+    - name: Check if /etc/init.d/collectd exists
+      stat: path=/etc/init.d/collectd
+      register: st
 
     - name: This playbook has only been tested with Debian and Ubuntu
       debug:
@@ -51,12 +54,8 @@
         dest: /etc/hosts
         insertafter: EOF
         state: present
-      when: grep_hosts.rc == 1
+      when: not st.stat.exists and grep_hosts.rc == 1
       notify: Remove localhost from /etc/hosts
-
-    - name: Check if /etc/init.d/collectd exists
-      stat: path=/etc/init.d/collectd
-      register: st
 
     - name: Update package list
       apt:
@@ -64,24 +63,26 @@
         cache_valid_time: 3600
       ignore_errors: yes
       register: apt_res
+      when: not st.stat.exists
 
     - name: Take a nap
       command: sleep 120
-      when: apt_res | failed
+      when: not st.stat.exists and apt_res | failed
 
     - name: apt-get -f install
       command: apt-get -f -y install
       ignore_errors: yes
-      when: apt_res | failed
+      when: not st.stat.exists and apt_res | failed
 
     - name: Update package list
       apt:
         update_cache: yes
         cache_valid_time: 3600
       ignore_errors: yes
-      when: apt_res | failed
+      when: not st.stat.exists and apt_res | failed
 
     - name: Install collectd
+      when: not st.stat.exists
       apt:
         pkg: collectd
         state: present
@@ -103,6 +104,7 @@
   handlers:
 
     - name: Remove localhost from /etc/hosts
+      when: not st.stat.exists
       lineinfile:
         line: "127.0.0.1 {{ ansible_hostname }}"
         dest: /etc/hosts
