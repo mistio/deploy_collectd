@@ -32,6 +32,8 @@
   hosts: Debian_based
   gather_facts: no
   sudo: yes
+  environment:
+    PYTHONPATH: "/usr/lib/python2.7/dist-packages:{{ ansible_env.get('PYTHONPATH') }}"
   tasks:
 
     - name: This playbook has only been tested with Debian and Ubuntu
