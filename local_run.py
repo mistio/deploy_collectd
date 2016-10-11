@@ -10,7 +10,7 @@ import subprocess
 from urlparse import urljoin
 
 VENV_VERSION = "1.11.6"
-ANSIBLE_VERSION = "1.7.2"
+ANSIBLE_VERSION = "1.9.3"
 PYPI_URL = "https://pypi.python.org/packages/source/"
 PLAYBOOK_PATH = "ansible/enable.yml"
 DEPLOY_COLLETD_BRANCH = "master"
